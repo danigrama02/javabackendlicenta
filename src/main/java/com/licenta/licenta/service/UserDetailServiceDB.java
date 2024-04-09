@@ -68,7 +68,8 @@ public class UserDetailServiceDB implements UserDetailsService {
         userRepository.save(newUser);
     }
 
-    public void logout() {
-        //todo
+    public void logout(String token) {
+        log.info("Logging out " + tokenUtils.getUsernameFromToken(token));
+        tokenUtils.invalidateToken(token);
     }
 }

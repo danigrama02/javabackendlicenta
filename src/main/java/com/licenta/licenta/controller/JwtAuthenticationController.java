@@ -40,7 +40,7 @@ public class JwtAuthenticationController {
     @PostMapping(value = "/logout")
     public ResponseEntity<?> logout(@RequestBody final LogoutRequest logoutRequest){
         log.info("Logging out user " + jwtTokenUtils.getUsernameFromToken(logoutRequest.getToken()));
-        this.userDetailServiceDB.logout();
+        this.userDetailServiceDB.logout(logoutRequest.getToken());
         return ResponseEntity.ok().build();
     }
 
