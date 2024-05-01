@@ -24,7 +24,7 @@ public class JwtTokenUtils implements Serializable {
 
     private String secret = "penisaaaaaaaaa";
 
-    private long JWT_TOKEN_VALIDITY = 1000L;
+    private long JWT_TOKEN_VALIDITY = 10000000L;
 
     private Map<String, List<String>> invalidTokens = new HashMap<>();
 

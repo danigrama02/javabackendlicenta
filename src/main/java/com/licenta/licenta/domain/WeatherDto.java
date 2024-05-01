@@ -7,9 +7,9 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Weather {
+public class WeatherDto {
+    Integer orderNr;
     String temperature;
     String precipitaion;
-    String weatherCode;
-    String cloudCoverage;
+    String weatherImage;
 }

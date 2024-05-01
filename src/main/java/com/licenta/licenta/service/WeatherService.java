@@ -1,46 +1,106 @@
 package com.licenta.licenta.service;
 
+import com.google.gson.Gson;
 import com.licenta.licenta.domain.Alert;
-import com.licenta.licenta.domain.Point;
+import com.licenta.licenta.domain.Location;
 import com.licenta.licenta.domain.Weather;
+import com.licenta.licenta.domain.WeatherDto;
+import com.licenta.licenta.domain.requests.WeatherResponse;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.json.GsonBuilderUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class WeatherService {
-    public List<Weather> getWeather(List<Point> points) {
 
-        //TODO add functionality to make a call to pithon service with the list of points and return the list of weather eventuali parse it to send it better to angular
+    private RestTemplate restTemplate;
+    private String AI_URL= "http://127.0.0.1:8000/weather";
 
-        Weather w1 = new Weather("1","123456","10.34°C","10.23mm","10.23atm","123321424");
-        Weather w2 = new Weather("2","123456","10.34°C","10.23mm","10.23atm","123321424");
-        Weather w3 = new Weather("3","123456","10.34°C","10.23mm","10.23atm","123321424");
-        Weather w4 = new Weather("4","123456","10.34°C","10.23mm","10.23atm","123321424");
-        Weather w5 = new Weather("5","123456","10.34°C","10.23mm","10.23atm","123321424");
-        Weather w6 = new Weather("6","123456","10.34°C","10.23mm","10.23atm","123321424");
-        Weather w7 = new Weather("7","123456","10.34°C","10.23mm","10.23atm","123321424");
-        Weather w8 = new Weather("8","123456","10.34°C","10.23mm","10.23atm","123321424");
-        Weather w9 = new Weather("9","123456","10.34°C","10.23mm","10.23atm","123321424");
-        Weather w10 = new Weather("10","123456","10.34°C","10.23mm","10.23atm","123321424");
-        List<Weather> weathers = List.of(w1,w2,w3,w4,w5,w6,w7,w8,w9,w10);
-
-        return weathers;
+    public WeatherService() {
+        this.restTemplate = new RestTemplate();
     }
 
-    public List<Alert> getAlerts(List<Point> points){
-        //TODO same as weather but with alerts
-        Alert a1 = new Alert("1",10.234,10.234,"123456","123321424","123321424");
-        Alert a2 = new Alert("2",10.234,10.234,"123456","123321424","123321424");
-        Alert a3 = new Alert("3",10.234,10.234,"123456","123321424","123321424");
-        Alert a4 = new Alert("4",10.234,10.234,"123456","123321424","123321424");
-        Alert a5 = new Alert("5",10.234,10.234,"123456","123321424","123321424");
-        Alert a6 = new Alert("6",10.234,10.234,"123456","123321424","123321424");
-        Alert a7 = new Alert("7",10.234,10.234,"123456","123321424","123321424");
-        Alert a8 = new Alert("8",10.234,10.234,"123456","123321424","123321424");
+    public List<WeatherDto> getWeather(String locations) {
+        Gson gson = new Gson();
 
-        List<Alert> alerts = List.of(a1,a2,a3,a4,a5,a6,a7,a8);
-        return alerts;
+        Integer currentHour = LocalDateTime.now().getHour();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<String> entity = new HttpEntity<>(locations, headers);
+
+        List<WeatherDto> weatherDtos = new ArrayList<>();
+        ResponseEntity<String> response = restTemplate.postForEntity(AI_URL + "/predict", entity, String.class);
+        if (response.getStatusCode().is2xxSuccessful())
+        {
+            System.out.println(response.getBody());
+            Map<String, List<List<List<Double>>>> responseJson = gson.fromJson(response.getBody(), Map.class);
+            List<Weather> weathers = new ArrayList<>();
+
+            for (List<List<Double>> predictionPerDayForCoords : responseJson.get("predictions")) {
+                int hoursIndex = 0;
+                for (List<Double> prediction : predictionPerDayForCoords) {
+                    Weather w = new Weather(prediction.get(0).toString(), prediction.get(2).toString(), prediction.get(3).toString(), prediction.get(1).toString());
+                    if (currentHour == hoursIndex) {
+                        weathers.add(w);
+                        currentHour ++;
+                        if (currentHour == 24) {
+                            currentHour = 0;
+                        }
+                        break;
+                    }
+                    hoursIndex++;
+                }
+
+            }
+
+            int i =0;
+            for (Weather w : weathers) {
+                WeatherDto weatherDto = new WeatherDto(i,w.getTemperature(), w.getPrecipitaion(),calculateWeatherImage(w));
+                weatherDtos.add(weatherDto);
+                i++;
+            }
+        }
+        return weatherDtos;
+    }
+
+    private String calculateWeatherImage(Weather weather){
+
+        String weatherImage = "";
+
+        Double temperature = Double.valueOf(weather.getTemperature());
+        Double precipitation = Double.valueOf(weather.getPrecipitaion());
+        Double cloudCoverage = Double.valueOf(weather.getCloudCoverage());
+
+        if (precipitation - 0.001 > 0.0){
+            if (temperature < 3.0){
+                weatherImage = "snow";
+            }
+            else {
+                weatherImage = "rain";
+            }
+        }
+        else{
+            weatherImage = "sun";
+        }
+        if (cloudCoverage > 60.0){
+            weatherImage = weatherImage + "_cloudy";
+        }
+        else {
+            weatherImage = weatherImage + "_clear";
+        }
+
+        return weatherImage;
     }
 
 
