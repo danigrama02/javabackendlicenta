@@ -1,16 +1,16 @@
 package com.licenta.licenta.service;
 
 import com.google.gson.Gson;
-import com.licenta.licenta.domain.Alert;
-import com.licenta.licenta.domain.Location;
-import com.licenta.licenta.domain.Weather;
-import com.licenta.licenta.domain.WeatherDto;
-import com.licenta.licenta.domain.requests.WeatherResponse;
+import com.licenta.licenta.domain.*;
+import com.licenta.licenta.domain.requests.WeatherRequest;
+import com.licenta.licenta.repository.HistoryRepository;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.json.GsonBuilderUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -19,17 +19,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class WeatherService {
 
     private RestTemplate restTemplate;
     private String AI_URL= "http://127.0.0.1:8000/weather";
 
-    public WeatherService() {
+    private final HistoryRepository historyRepository;
+    @Autowired
+    public WeatherService(HistoryRepository historyRepository) {
         this.restTemplate = new RestTemplate();
+        this.historyRepository = historyRepository;
     }
 
-    public List<WeatherDto> getWeather(String locations) {
+    public List<WeatherDto> getWeather(WeatherRequest weatherRequest) {
         Gson gson = new Gson();
 
         Integer currentHour = LocalDateTime.now().getHour();
@@ -37,7 +41,7 @@ public class WeatherService {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        HttpEntity<String> entity = new HttpEntity<>(locations, headers);
+        HttpEntity<String> entity = new HttpEntity<>(weatherRequest.getLocations(), headers);
 
         List<WeatherDto> weatherDtos = new ArrayList<>();
         ResponseEntity<String> response = restTemplate.postForEntity(AI_URL + "/predict", entity, String.class);
@@ -71,6 +75,7 @@ public class WeatherService {
                 i++;
             }
         }
+        this.saveHistory(weatherRequest, weatherDtos);
         return weatherDtos;
     }
 
@@ -78,11 +83,11 @@ public class WeatherService {
 
         String weatherImage = "";
 
-        Double temperature = Double.valueOf(weather.getTemperature());
-        Double precipitation = Double.valueOf(weather.getPrecipitaion());
-        Double cloudCoverage = Double.valueOf(weather.getCloudCoverage());
+        double temperature = Double.parseDouble(weather.getTemperature());
+        double precipitation = Double.parseDouble(weather.getPrecipitaion());
+        double cloudCoverage = Double.parseDouble(weather.getCloudCoverage());
 
-        if (precipitation - 0.001 > 0.0){
+        if (precipitation - 0.3 > 0.0){
             if (temperature < 3.0){
                 weatherImage = "snow";
             }
@@ -93,15 +98,40 @@ public class WeatherService {
         else{
             weatherImage = "sun";
         }
-        if (cloudCoverage > 60.0){
-            weatherImage = weatherImage + "_cloudy";
-        }
-        else {
-            weatherImage = weatherImage + "_clear";
+        if (cloudCoverage > 60.0 && !weatherImage.equals("rain") && !weatherImage.equals("snow")){
+            weatherImage = "cloudy";
         }
 
         return weatherImage;
     }
+
+    public List<History> getHistory(String username){
+        username = username.replace("\"", "");
+        username = username.strip();
+        List<History> history = this.historyRepository.findByUsername(username);
+        return history;
+    }
+
+    public void saveHistory(WeatherRequest weatherRequest, List<WeatherDto> weatherDtos){
+        log.info("Saving history");
+        double avgTemp = 0.0;
+        double avgPrecipitation = 0.0;
+        for (WeatherDto w : weatherDtos){
+            avgTemp += Double.parseDouble(w.getTemperature());
+            avgPrecipitation += Double.parseDouble(w.getPrecipitaion());
+        }
+        avgTemp = avgTemp / weatherDtos.size();
+        avgPrecipitation = avgPrecipitation / weatherDtos.size();
+        History history = new History();
+        history.setUsername(weatherRequest.getUsername());
+        history.setDate(LocalDateTime.now().toLocalDate().toString());
+        history.setStartLocation(weatherRequest.getFromLocation());
+        history.setEndLocation(weatherRequest.getToLocation());
+        history.setAvgTemp(String.valueOf(avgTemp));
+        history.setAvgPrecipitation(String.valueOf(avgPrecipitation));
+        this.historyRepository.save(history);
+    }
+
 
 
 }

@@ -1,14 +1,12 @@
 package com.licenta.licenta.controller;
 
-import com.google.gson.Gson;
-import com.licenta.licenta.domain.Location;
+import com.licenta.licenta.domain.requests.WeatherRequest;
 import com.licenta.licenta.service.WeatherService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 @CrossOrigin(origins = "*")
 @Slf4j
@@ -23,16 +21,17 @@ public class WeatherController {
     }
 
     @PostMapping("/forecast")
-    public final ResponseEntity<?> getWeather(@RequestBody  String locations){
+    public final ResponseEntity<?> getWeather(@RequestBody WeatherRequest weatherRequest){
         log.info("Sending response for requested weather");
-        log.info("Locations: " + locations);
-        return ResponseEntity.ok(weatherService.getWeather(locations));
+        log.info("Locations: " + weatherRequest.getLocations());
+        return ResponseEntity.ok(weatherService.getWeather(weatherRequest));
     }
 
 
     @PostMapping("/history")
-    public final ResponseEntity<?> getHistory(){
+    public final ResponseEntity<?> getHistory(@RequestBody String username){
         log.info("Sending history response");
-        return ResponseEntity.ok("da");
+        log.info("Username: " + username);
+        return ResponseEntity.ok(this.weatherService.getHistory(username));
     }
 }
