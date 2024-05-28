@@ -22,7 +22,7 @@ public class JwtTokenUtils implements Serializable {
 
     private static final long serialVersionUID = -2550185165626007488L;
 
-    private String secret = "penisaaaaaaaaa";
+    private String secret = "zeuspitbullpower69";
 
     private long JWT_TOKEN_VALIDITY = 10000000L;
 
